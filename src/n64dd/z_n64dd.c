@@ -23,32 +23,32 @@ typedef struct n64dd_CopyToRAM {
     /* 0x004 */ s32 diskEnd;       // disk end
     /* 0x008 */ uintptr_t RAMStart; // ram start
     /* 0x00C */ uintptr_t RAMEnd; // ram end
-    /* 0x010 */ UNK_PTR unk_010;
+    /* 0x010 */ UNK_PTR unk_010; // s32?
     /* 0x014 */ char padding[0x104];
 } n64dd_CopyToRAM; // size = 0x118
 
 typedef struct n64dd_QueuedTransfersList { // I think this basically has a list of queued disk read commands 
                                             // ready to be passed to an OSMesgQueue
-    /* 0x00 */ OSMesg unk_00[30];
-    /* 0x78 */ OSMesgQueue unk_78;
-    /* 0x90 */ IrqMgrClient unk_90;
-    /* 0x98 */ IrqMgr* unk_98;
+    /* 0x00 */ OSMesg messages[30];
+    /* 0x78 */ OSMesgQueue msgQueue;
+    /* 0x90 */ IrqMgrClient IRQMgrC;
+    /* 0x98 */ IrqMgr* pIRQMgr;
 } n64dd_QueuedTransfersList; // size = 0x9C
 
 s32 n64dd_CheckIfDiskIsValid(n64dd_CommPacket* arg0);
 
 void* tmpDDReadBuf = &gN64DDDiskReadTemporaryBuffer;
-s32 (*D_801D2E54)(n64dd_CommPacket*) = n64dd_CheckIfDiskIsValid;
+s32 (*ptr_n64dd_CheckIfDiskIsValid)(n64dd_CommPacket*) = n64dd_CheckIfDiskIsValid;
 
-n64dd_QueuedTransfersList B_801D9B90;
-n64dd_CopyToRAM B_801D9C30;
-n64dd_CopyToRAM* B_801D9D48;
+n64dd_QueuedTransfersList queuedDDTransfers;
+n64dd_CopyToRAM DDLoad0;
+n64dd_CopyToRAM* pDDLoad0;
 struct_801D9D50 B_801D9D50;
-OSMesgQueue B_801D9D80;
-OSMesgQueue B_801D9D98;
-OSMesg B_801D9DB0[1];
-OSMesg B_801D9DB4[1];
-volatile u8 B_801D9DB8; // maybe this is a bool? it's never set to anything other than 0 or 1
+OSMesgQueue msgQueue0; 
+OSMesgQueue msgQueue1;
+OSMesg queuedMessages0[1];
+OSMesg queuedMessages1[1];
+volatile u8 NewFramebufAvailable; // maybe this is a bool? it's never set to anything other than 0 or 1
 volatile OSTime currentTime;
 s32 isGameDiskCorrect; // 1 if disk gameName is correct, 2 otherwise
                         // shouldn't it be u8? or is s32 there for matching?
@@ -159,38 +159,46 @@ s32 n64dd_checkIfGameDiskIsCorrect(void) {
     return n64dd_checkIfGameDiskIsCorrectInternal();
 }
 
-void func_801C711C(void* arg) {
-    static void* B_801DBFC8;
-    n64dd_QueuedTransfersList* arg0 = (n64dd_QueuedTransfersList*)arg;
-    s16* sp58;
-    s32 var_s0;
-    void* temp_v0;
+/**
+ * Enqueues all queued disk transfers to be automatically performed
+ * when the drive is ready.
+ * @param queuedDiskTransfers A queue of all the disk transfers to be performed
+**/
+void n64dd_EnqueueDiskTransfers(void* queuedDiskTransfers) {
+    static void* pSomeFramebuf;
+    n64dd_QueuedTransfersList* pTransferList = (n64dd_QueuedTransfersList*) queuedDiskTransfers;
+    s16* pOSRecvMesg;
+    s32 exit;
+    void* pNextFramebuf;
 
-    sp58 = NULL;
-    arg0->unk_98 = &gIrqMgr;
-    osCreateMesgQueue(&arg0->unk_78, arg0->unk_00, ARRAY_COUNT(arg0->unk_00));
-    IrqMgr_AddClient(arg0->unk_98, &arg0->unk_90, &arg0->unk_78);
-    var_s0 = 0;
+    pOSRecvMesg = NULL;
+    pTransferList->pIRQMgr = &gIrqMgr;
+    osCreateMesgQueue(&pTransferList->msgQueue, pTransferList->messages, ARRAY_COUNT(pTransferList->messages));
+    IrqMgr_AddClient(pTransferList->pIRQMgr, &pTransferList->IRQMgrC, &pTransferList->msgQueue);
+    exit = 0;
     do {
-        osRecvMesg(&arg0->unk_78, (OSMesg*)&sp58, OS_MESG_BLOCK);
-        switch (*sp58) {
-            case 1:
-                temp_v0 = osViGetNextFramebuffer();
-                if (B_801DBFC8 != temp_v0) {
-                    B_801DBFC8 = temp_v0;
-                    B_801D9DB8 = 1;
+        osRecvMesg(&pTransferList->msgQueue, (OSMesg*)&pOSRecvMesg, OS_MESG_BLOCK);
+        // I think that the idea is to wait for messages from the disk drive;
+        // If there is an error, it is displayed on screen or the drive is reset 
+        // (maybe to try again?) or everything is fine and we do nothing else.
+        switch (*pOSRecvMesg) {
+            case 1: // Clear FB and display an error
+                pNextFramebuf = osViGetNextFramebuffer();
+                if (pSomeFramebuf != pNextFramebuf) {
+                    pSomeFramebuf = pNextFramebuf;
+                    NewFramebufAvailable = 1; // Not 100% sure
                 }
-                func_801C8AA8();
+                func_801C8AA8(); // Print an error on screen?
                 break;
             case 4:
                 LeoReset();
                 break;
             case 3:
-                var_s0 = 1;
+                exit = 1;
                 break;
         }
-    } while (var_s0 == 0);
-    IrqMgr_RemoveClient(arg0->unk_98, &arg0->unk_90);
+    } while (exit == 0);
+    IrqMgr_RemoveClient(pTransferList->pIRQMgr, &pTransferList->IRQMgrC);
 }
 
 #if OOT_VERSION >= NTSC_1_1
@@ -215,7 +223,7 @@ void func_801C7268(void) {
     if (sp20 == 0) {
         func_801C6F30();
     }
-    B_801D9DB8 = 1;
+    NewFramebufAvailable = 1;
     currentTime = 0;
     if (func_801C7064() == 1) {
         func_801C7098();
@@ -236,7 +244,7 @@ void func_801C7268(void) {
         }
     }
 #else
-    if (D_801D2EA8 == 1 || B_801E0F60 == 1 || B_801E0F64 == 1) {
+    if (D_801D2EA8 == 1 || isErrorTexDisplayed == 1 || B_801E0F64 == 1) {
         currentTime = osGetTime();
     }
     func_801C7B28_ne2();
@@ -261,8 +269,8 @@ void func_801C746C(void* arg0, void* arg1, void* arg2) {
     if (arg0 != NULL || arg1 != NULL || arg2 != NULL) {
         sp2C = (u8*)osViGetNextFramebuffer() + 0x20000000;
         if ((u32)sp2C & 0xFFFFFF) {
-            if (B_801D9DB8 != 0) {
-                B_801D9DB8 = 0;
+            if (NewFramebufAvailable != 0) {
+                NewFramebufAvailable = 0;
                 func_801C7438(sp2C);
                 currentTime = osGetTime();
             }
@@ -289,7 +297,7 @@ void func_801C75BC(void* arg0, void* arg1, void* arg2) {
         return;
     }
 
-    if (B_801D9DB8) {}
+    if (NewFramebufAvailable) {}
 
     if (arg0 != 0) {
         B_801D9DCC = arg0;
@@ -315,17 +323,17 @@ s32 func_801C7658(void) {
 
 #if OOT_VERSION < PAL_1_0
     StackCheck_Init(&B_801DAF88, B_801D9F88, STACK_TOP(B_801D9F88), 0, 0x100, "ddmsg");
-    osCreateThread(&DiskReadThread, THREAD_ID_DDMSG, &func_801C711C, &B_801D9B90, STACK_TOP(B_801D9F88), THREAD_PRI_DDMSG);
+    osCreateThread(&DiskReadThread, THREAD_ID_DDMSG, &n64dd_EnqueueDiskTransfers, &queuedDDTransfers, STACK_TOP(B_801D9F88), THREAD_PRI_DDMSG);
     osStartThread(&DiskReadThread);
 #endif
 
-    osCreateMesgQueue(&B_801D9D80, B_801D9DB0, ARRAY_COUNT(B_801D9DB0));
-    osCreateMesgQueue(&B_801D9D98, B_801D9DB4, ARRAY_COUNT(B_801D9DB4));
+    osCreateMesgQueue(&msgQueue0, queuedMessages0, ARRAY_COUNT(queuedMessages0));
+    osCreateMesgQueue(&msgQueue1, queuedMessages1, ARRAY_COUNT(queuedMessages1));
 
     StackCheck_Init(&B_801DBFA8, B_801DAFA8, STACK_TOP(B_801DAFA8), 0, 0x100, "n64dd");
 
-    B_801D9D50.unk_1C = &B_801D9D80;
-    B_801D9D50.unk_20 = &B_801D9D98;
+    B_801D9D50.unk_1C = &msgQueue0;
+    B_801D9D50.unk_20 = &msgQueue1;
     B_801D9D50.unk_24 = THREAD_ID_N64DD;
     B_801D9D50.unk_28 = STACK_TOP(B_801DAFA8);
     B_801D9D50.unk_2C = THREAD_PRI_N64DD;
@@ -347,7 +355,7 @@ s32 func_801C7658(void) {
 
 #if OOT_VERSION >= PAL_1_0
     StackCheck_Init(&B_801DAF88, B_801D9F88, STACK_TOP(B_801D9F88), 0, 0x100, "ddmsg");
-    osCreateThread(&DiskReadThread, THREAD_ID_DDMSG, &func_801C711C, &B_801D9B90, STACK_TOP(B_801D9F88), THREAD_PRI_DDMSG);
+    osCreateThread(&DiskReadThread, THREAD_ID_DDMSG, &n64dd_EnqueueDiskTransfers, &queuedDDTransfers, STACK_TOP(B_801D9F88), THREAD_PRI_DDMSG);
     osStartThread(&DiskReadThread);
 #endif
 
@@ -356,7 +364,7 @@ s32 func_801C7658(void) {
 
 s32 func_801C7818(void) {
 #if OOT_VERSION >= NTSC_1_1
-    B_801D9DB8 = 1;
+    NewFramebufAvailable = 1;
     currentTime = 0;
 #endif
 
@@ -369,7 +377,7 @@ s32 func_801C7818(void) {
     }
 
 #if OOT_VERSION >= NTSC_1_1
-    if (D_801D2EA8 == 1 || B_801E0F60 == 1 || B_801E0F64 == 1) {
+    if (D_801D2EA8 == 1 || isErrorTexDisplayed == 1 || B_801E0F64 == 1) {
         currentTime = osGetTime();
     }
     func_801C7B28_ne2();
@@ -503,7 +511,7 @@ void func_801C7C1C(void* dest, s32 offset, s32 size) {
 
     func_801C6FD8();
     func_801C6F30();
-    B_801D9DB8 = 1;
+    NewFramebufAvailable = 1;
     currentTime = 0;
     func_801C7B48(offset, &sp5C, &sp54);
     func_801C7B48(offset + size, &sp58, &sp50);
@@ -549,17 +557,17 @@ s32 func_801C7E80(void) {
     s32 sp1C;
     uintptr_t sp18;
 
-    if (B_801D9D48 != NULL) {
+    if (pDDLoad0 != NULL) {
         return -1;
     }
-    B_801D9D48 = &B_801D9C30;
-    func_801C7C1C(B_801D9D48, 0x1060, 0x118);
-    sp24 = B_801D9D48->diskEnd - B_801D9D48->diskStart;
-    sp20 = B_801D9D48->RAMEnd - B_801D9D48->RAMStart;
-    sp18 = B_801D9D48->RAMStart + sp24;
-    func_801C7C1C((void*)B_801D9D48->RAMStart, B_801D9D48->diskStart, sp24);
+    pDDLoad0 = &DDLoad0;
+    func_801C7C1C(pDDLoad0, 0x1060, 0x118);
+    sp24 = pDDLoad0->diskEnd - pDDLoad0->diskStart;
+    sp20 = pDDLoad0->RAMEnd - pDDLoad0->RAMStart;
+    sp18 = pDDLoad0->RAMStart + sp24;
+    func_801C7C1C((void*)pDDLoad0->RAMStart, pDDLoad0->diskStart, sp24);
     bzero((void*)sp18, sp20 - sp24);
-    func_800AD4C0(B_801D9D48->unk_010);
+    func_800AD4C0(pDDLoad0->unk_010);
     return 0;
 }
 
@@ -567,27 +575,27 @@ s32 func_801C7F24(void) {
     uintptr_t temp_a0;
     n64dd_CopyToRAM* temp_v0;
 
-    if (B_801D9D48 == 0) {
+    if (pDDLoad0 == 0) {
         return -1;
     }
 
     // Function from code
     func_800AD51C();
 
-    temp_v0 = B_801D9D48;
+    temp_v0 = pDDLoad0;
     temp_a0 = temp_v0->RAMStart;
     bzero((void*)temp_a0, temp_v0->RAMEnd - temp_a0);
-    bzero(B_801D9D48, sizeof(n64dd_CopyToRAM));
-    B_801D9D48 = 0;
+    bzero(pDDLoad0, sizeof(n64dd_CopyToRAM));
+    pDDLoad0 = 0;
     return 0;
 }
 
 void n64dd_SetDiskVersion(s32 arg0) {
     if (arg0 != 0) {
-        if (B_801D9D48 == 0) {
+        if (pDDLoad0 == 0) {
             func_801C7E80();
         }
-    } else if (B_801D9D48 != 0) {
+    } else if (pDDLoad0 != 0) {
         func_801C7F24();
     }
 }

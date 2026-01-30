@@ -33,7 +33,7 @@ struct_801D2E68 D_801D2E68[5] = {
 
 s32 D_801D2E90 = 0;
 
-OSMesgQueue* B_801E0D10[2];
+OSMesgQueue* pAllMessageQueues[2];
 n64dd_CommPacket B_801E0D18;
 OSMesg B_801E0D88[1];
 OSMesg B_801E0D90[8];

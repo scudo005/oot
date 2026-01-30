@@ -13,7 +13,7 @@ s32 B_801E0F70;
  * @param bytes Array 2 bytes to test
  * @return boolean
  */
-int func_801C9440(u8* bytes) {
+int n64ddError_CheckIfValidEUCJPChar(u8* bytes) {
     // This is every possible first byte. May make more sense what was intended with the font files?
     if (((*bytes >= 0x8E) && (*bytes <= 0xFE)) || ((*bytes != 0x8F) && (*bytes != 0xA0))) {
         bytes++;
@@ -23,12 +23,13 @@ int func_801C9440(u8* bytes) {
 }
 
 /**
- * A crude check for a valid 2-byte Shift-JIS character
+ * A crude check for a valid 2-byte Shift-JIS character.
+ * Seems to be unused?
  *
  * @param bytes Array containing a pair of bytes to test
  * @return boolean
  */
-int func_801C9494(u8* bytes) {
+int n64ddError_CheckIfValidShiftJISChar(u8* bytes) {
     // Allowable first bytes.
     if (((*bytes >= 0x81) && (*bytes <= 0x9F)) || ((*bytes >= 0xE0) && (*bytes <= 0xFC))) {
         bytes++;
@@ -45,7 +46,7 @@ void func_801C94F8(u8* arg0, u16 arg1) {
 }
 
 // Convert EUC-JP to JIS X 0208
-u16 func_801C9514(u16 eucjpCh) {
+u16 n64ddError_ConvertEUCJPToJISX0208(u16 eucjpCh) {
     return eucjpCh - 0x8080;
 }
 
@@ -55,7 +56,7 @@ u16 func_801C9514(u16 eucjpCh) {
  * @param jisCodepoint Two bytes, each between 0x21 and 0x7E, packed big-endian into a short.
  * @return u16 Shift-JIS character representation (expected to be big-endian)
  */
-u16 func_801C9534(u16 jisCodepoint) {
+u16 n64ddError_ConvertJISX020TToShiftJIS(u16 jisCodepoint) {
     u8 hiByte = (jisCodepoint >> 8) & 0xFF;
     u8 loByte = jisCodepoint & 0xFF;
 
@@ -82,8 +83,9 @@ void func_801C95C0(void* arg0, uintptr_t arg1, size_t arg2) {
     }
 }
 
-s32 func_801C95F0(u8* arg0) {
-    return LeoGetKAdr(func_801C9534(func_801C9514((arg0[0] << 8) | arg0[1]))) + DDROM_FONT_START;
+// get character texture from the character, the font is on the disk I think
+s32 n64ddError_GetCharacterFontTexFromChar(u8* arg0) { // converts from EUC-JP to JIS X 0208 and then to Shift-JIS
+    return LeoGetKAdr(n64ddError_ConvertJISX020TToShiftJIS(n64ddError_ConvertEUCJPToJISX0208((arg0[0] << 8) | arg0[1]))) + DDROM_FONT_START;
 }
 
 s32 func_801C963C(s32* arg0, int* dx, int* dy, int* cy, u8 arg4) {
@@ -103,8 +105,8 @@ s32 func_801C969C(void* arg0, int* dx, int* dy, int* cy, u8* arg4) {
     s32 sp24;
     s32 phi_v1;
 
-    if (func_801C9440(arg4)) {
-        sp24 = func_801C95F0(arg4);
+    if (n64ddError_CheckIfValidEUCJPChar(arg4)) {
+        sp24 = n64ddError_GetCharacterFontTexFromChar(arg4);
         *dx = 16;
         *dy = 16;
         *cy = 11;
@@ -185,7 +187,7 @@ void func_801C9954(u8* bytes, s32* arg1, s32* arg2) {
     u8 prevCh;
     u8 nextCh;
 
-    if (func_801C9440(bytes)) {
+    if (n64ddError_CheckIfValidEUCJPChar(bytes)) {
         *arg1 = *arg2 = 0;
         return;
     }
@@ -228,7 +230,8 @@ void func_801C9954(u8* bytes, s32* arg1, s32* arg2) {
     *arg2 = 1;
 }
 
-void func_801C9A10(u8* arg0, s32 arg1, u8* str) {
+// displays error code on screen???
+void func_801C9A10(u8* arg0, s32 arg1, u8* errorStr) {
     u8 sp80[0xA0];
     u8* temp_s1;
     int dx;
@@ -241,18 +244,18 @@ void func_801C9A10(u8* arg0, s32 arg1, u8* str) {
 
     temp_s1 = (u8*)((((uintptr_t)&sp80 + 0xF) / 0x10) * 0x10);
     var_s2 = 1;
-    if (str != NULL) {
-        while (*str != '\0') {
+    if (errorStr != NULL) {
+        while (*errorStr != '\0') {
             func_801C9954(str, &sp68, &sp64);
             temp_v1 = func_801C969C(temp_s1, &dx, &dy, &cy, str);
             if (dx & 1) {
                 dx++;
             }
             var_s2 = func_801C97C4(&arg0, arg1, var_s2, sp68, sp64, &temp_s1[temp_v1], dx, dy, cy);
-            if (func_801C9440(str)) {
-                str++;
+            if (n64ddError_CheckIfValidEUCJPChar(errorStr)) {
+                errorStr++;
             }
-            str++;
+            errorStr++;
         }
     }
 }

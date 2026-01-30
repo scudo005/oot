@@ -5,91 +5,92 @@
 #include "attributes.h"
 
 s32 D_801D2EA0 = 0;
-u8* D_801D2EA4 = NULL;
-s32 D_801D2EA8 = 0;
-u8* D_801D2EAC = NULL;
+u8* pErrorCodeTexture = NULL;
+s32 isErrorCodeDisplayed = 0;
+u8* pErrorMsgTexture = NULL; // maybe?????
 u8* D_801D2EB0 = NULL;
 void (*D_801D2EB4)(void*, void*, void*) = NULL;
 
-s32 B_801E0F60;
+s32 isErrorTexDisplayed;
 s32 B_801E0F64;
 
 // Set error message title texture?
-void func_801C8940(s32 errorNum) {
-    D_801D2EA4 = func_801C9E28(errorNum);
-    D_801D2EA8 = 1;
+void n64ddError_SetErrorCodeTexture(s32 errorNum) {
+    pErrorCodeTexture = n64ddError_GetPtrToErrorCodeTexture(errorNum);
+    isErrorCodeDisplayed = 1;
 }
 
 // Clear error message title texture?
-void func_801C8974(void) {
-    if (D_801D2EA8 == 1) {
-        D_801D2EA4 = func_801C9EC0();
-        D_801D2EA8 = 0;
+void n64ddError_ClearErrorMsgTexture(void) {
+    if (isErrorCodeDisplayed == 1) {
+        pErrorCodeTexture = n64dd_clearUnkU8Buf2();
+        isErrorCodeDisplayed = 0;
     }
 }
 
 // Set error message something
-void func_801C89B8(s32 errorNum) {
-    D_801D2EAC = func_801C9F90(errorNum);
-    B_801E0F60 = 1;
+void n64ddError_SetErrorMsgTexture(s32 errorNum) {
+    pErrorMsgTexture = n64ddError_GetErrorMsgTexture(errorNum);
+    isErrorTexDisplayed = 1;
 }
 
 // Clear error message something
-void func_801C89EC(void) {
-    if (B_801E0F60 == 1) {
-        D_801D2EAC = func_801C9FFC();
-        B_801E0F60 = 0;
+void n64ddError_ClearErrorMsgTexBuf(void) {
+    if (isErrorTexDisplayed == 1) {
+        pErrorMsgTexture = n64dd_clearUnkU8Buf1();
+        isErrorTexDisplayed = 0;
     }
 }
 
 // Set error message something
 void func_801C8A30(s32 errorNum) {
-    D_801D2EB0 = func_801CA030(errorNum);
+    D_801D2EB0 = n64ddError_ClearUnkU8Buf0AndPrintErr(errorNum);
     B_801E0F64 = 1;
 }
 
 // Clear error message something
 void func_801C8A64(void) {
     if (B_801E0F64 == 1) {
-        D_801D2EB0 = func_801CA070();
+        D_801D2EB0 = n64dd_clearUnkU8Buf0();
         B_801E0F64 = 0;
     }
 }
 
+// Wait for OS message and print an error?
 void func_801C8AA8(void) {
-    osRecvMesg(B_801E0D10[1], NULL, OS_MESG_NOBLOCK);
+    osRecvMesg(pAllMessageQueues[1], NULL, OS_MESG_NOBLOCK); // yields the thread until there is a message on the queue
 
     if ((D_801D2EB4 != NULL) && (D_801D2EA0 == 0)) {
-        u32 temp_v0 = osSetIntMask(OS_IM_NONE);
-        void* sp20 = D_801D2EA4;
-        void* sp1C = D_801D2EAC;
+        u32 interruptStatus = osSetIntMask(OS_IM_NONE); // disable all interrupts
+        void* sp20 = pErrorCodeTexture;
+        void* sp1C = pErrorMsgTexture;
         void* sp18 = D_801D2EB0;
 
-        D_801D2EA4 = NULL;
-        D_801D2EAC = NULL;
+        pErrorCodeTexture = NULL;
+        pErrorMsgTexture = NULL;
         D_801D2EB0 = NULL;
-        osSetIntMask(temp_v0);
+        osSetIntMask(interruptStatus); // set interrupt status to what it was
         D_801D2EB4(sp20, sp1C, sp18);
     }
 }
 
 void func_801C8B58(s32 arg0, s32 arg1, s32 arg2) {
-    func_801C8940(arg0);
-    func_801C89B8(arg1);
+    n64ddError_SetErrorCodeTexture(arg0);
+    n64ddError_SetErrorMsgTexture(arg1);
     func_801C8A30(arg2);
 }
 
 void func_801C8B90(void) {
-    func_801C8974();
-    func_801C89EC();
+    n64ddError_ClearErrorMsgTexture();
+    n64ddError_ClearErrorMsgTexBuf();
     func_801C8A64();
 }
 
 s32 func_801C8BC0(n64dd_CommPacket* arg0) {
     if ((arg0->unk_68 < 0x25) || (arg0->unk_68 >= 0x29)) {
         if ((arg0->unk_68 != 0x1F) && (arg0->unk_68 != 0x20)) {
-            func_801C8940(arg0->unk_68);
-            func_801C89B8(3);
+            n64ddError_SetErrorCodeTexture(arg0->unk_68);
+            n64ddError_SetErrorMsgTexture(3);
         }
     }
     LeoClearQueue();
@@ -132,7 +133,7 @@ s32 func_801C8CEC(n64dd_CommPacket* arg0) {
             LeoClearQueue();
             return 3;
         case 0x2:
-            func_801C8940(arg0->unk_68);
+            n64ddError_SetErrorCodeTexture(arg0->unk_68);
             func_801C8A30(5);
             return 9;
         case 0x0:
@@ -160,8 +161,8 @@ s32 func_801C8DC0(n64dd_CommPacket* arg0) {
         func_801C8298(arg0);
         switch (arg0->unk_68) {
             case 0x31:
-                func_801C8940(arg0->unk_68);
-                func_801C89B8(2);
+                n64ddError_SetErrorCodeTexture(arg0->unk_68);
+                n64ddError_SetErrorMsgTexture(2);
                 return 5;
             case 0x2A:
                 func_801C8B90();
@@ -187,8 +188,8 @@ s32 func_801C8E70(n64dd_CommPacket* arg0) {
             case 0x23:
                 continue;
             case 0x31:
-                func_801C8940(arg0->unk_68);
-                func_801C89B8(2);
+                n64ddError_SetErrorCodeTexture(arg0->unk_68);
+                n64ddError_SetErrorMsgTexture(2);
                 FALLTHROUGH;
             case 0x2A:
                 func_801C8A30(4);
@@ -203,8 +204,8 @@ s32 func_801C8E70(n64dd_CommPacket* arg0) {
 }
 
 s32 func_801C8F1C(n64dd_CommPacket* arg0) {
-    if (D_801D2E54 != NULL) {
-        return D_801D2E54(arg0);
+    if (ptr_n64dd_CheckIfDiskIsValid != NULL) {
+        return ptr_n64dd_CheckIfDiskIsValid(arg0);
     }
     return 1;
 }
@@ -223,12 +224,12 @@ s32 func_801C8F58(n64dd_CommPacket* arg0) {
             if (func_801C8F1C(arg0) != 0) {
                 return 2;
             }
-            func_801C89B8(1);
+            n64ddError_SetErrorMsgTexture(1);
             temp_v0 = func_801C8C1C(arg0);
             if (temp_v0 != 0) {
                 return temp_v0;
             }
-            func_801C89EC();
+            n64ddError_ClearErrorMsgTexBuf();
         }
     }
 }
@@ -253,7 +254,7 @@ s32 func_801C9000(n64dd_CommPacket* arg0) {
                 return 2;
             }
 
-            func_801C89B8(1);
+            n64ddError_SetErrorMsgTexture(1);
 
             phi_s0 = func_801C8C1C(arg0);
             if (phi_s0 == 3 || phi_s0 == 4) {}
@@ -261,7 +262,7 @@ s32 func_801C9000(n64dd_CommPacket* arg0) {
                 return phi_s0;
             }
 
-            func_801C89EC();
+            n64ddError_ClearErrorMsgTexBuf();
             if (temp_s4 != 0) {
                 return phi_s0;
             }
@@ -270,13 +271,13 @@ s32 func_801C9000(n64dd_CommPacket* arg0) {
 }
 
 s32 func_801C90C4(n64dd_CommPacket* arg0) {
-    func_801C8940(arg0->unk_68);
-    func_801C89B8(2);
+    n64ddError_SetErrorCodeTexture(arg0->unk_68);
+    n64ddError_SetErrorMsgTexture(2);
     return func_801C9000(arg0);
 }
 
 s32 func_801C90FC(n64dd_CommPacket* arg0) {
-    func_801C8940(arg0->unk_68);
+    n64ddError_SetErrorCodeTexture(arg0->unk_68);
     return func_801C9000(arg0);
 }
 
@@ -390,11 +391,11 @@ s32 func_801C93C4(n64dd_CommPacket* arg0) {
         if (temp_v0_2 != 7) {
             return temp_v0_2;
         }
-        func_801C89B8(1);
+        n64ddError_SetErrorMsgTexture(1);
         temp_v0 = func_801C8C1C(arg0);
         if (temp_v0 != 0) {
             return temp_v0;
         }
-        func_801C89EC();
+        n64ddError_ClearErrorMsgTexBuf();
     }
 }

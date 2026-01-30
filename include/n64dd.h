@@ -78,7 +78,7 @@ typedef struct n64dd_CommPacket {
     /* 0x64 */ u8 unk_64;
     /* 0x65 */ u8 unk_65;
     /* 0x66 */ u8 unk_66;
-    /* 0x68 */ s32 unk_68;
+    /* 0x68 */ s32 unk_68; // maybe disk drive status?
     /* 0x6C */ s32 unk_6C;
 } n64dd_CommPacket; // size = 0x70
 
@@ -135,12 +135,12 @@ void func_801C94F8(u8* arg0, u16 arg1);
 void func_801C9A10(u8* arg0, s32 arg1, u8* str);
 void func_801C9B50(s32 arg0, void (*arg1)(void*, uintptr_t, size_t));
 
-u8* func_801C9E28(s32 errorNum);
-u8* func_801C9EC0(void);
-u8* func_801C9F90(s32 errorNum);
-u8* func_801C9FFC(void);
-u8* func_801CA030(s32 errorNum);
-u8* func_801CA070(void);
+u8* n64ddError_GetPtrToErrorCodeTexture(s32 errorNum);
+u8* n64dd_clearUnkU8Buf2(void);
+u8* n64ddError_GetErrorMsgTexture(s32 errorNum);
+u8* n64dd_clearUnkU8Buf1(void);
+u8* n64ddError_ClearUnkU8Buf0AndPrintErr(s32 errorNum);
+u8* n64dd_clearUnkU8Buf0(void);
 
 void func_801CA1F0(void* charTexBuf, s32 posX, s32 posY, s32 dx, s32 dy, s32 cy, void* frameBuf, s32 screenWidth);
 
@@ -153,16 +153,16 @@ extern u8 D_80121212;
 extern vu8 D_80121213;
 extern vu8 D_80121214;
 
-extern s32 (*D_801D2E54)(n64dd_CommPacket*);
+extern s32 (*ptr_n64dd_CheckIfDiskIsValid)(n64dd_CommPacket*);
 
 extern u8 gN64DDDiskReadTemporaryBuffer[];
 
 extern s32 D_801D2E90;
-extern OSMesgQueue* B_801E0D10[2];
+extern OSMesgQueue* pAllMessageQueues[2];
 
 extern s32 D_801D2EA0;
 extern s32 D_801D2EA8;
-extern s32 B_801E0F60;
+extern s32 isErrorTexDisplayed;
 extern s32 B_801E0F64;
 extern void (*D_801D2EB4)(void*, void*, void*);
 
