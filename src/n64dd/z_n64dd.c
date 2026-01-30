@@ -49,7 +49,7 @@ OSMesgQueue B_801D9D98;
 OSMesg B_801D9DB0[1];
 OSMesg B_801D9DB4[1];
 volatile u8 B_801D9DB8; // maybe this is a bool? it's never set to anything other than 0 or 1
-volatile OSTime B_801D9DC0;
+volatile OSTime currentTime;
 s32 isGameDiskCorrect; // 1 if disk gameName is correct, 2 otherwise
                         // shouldn't it be u8? or is s32 there for matching?
 void* B_801D9DCC;
@@ -197,8 +197,8 @@ void func_801C711C(void* arg) {
 void func_801C7B28_ne2(void) {
     s32 temp;
 
-    if (B_801D9DC0 != 0) {
-        temp = (osGetTime() - B_801D9DC0) * 64 / 3000;
+    if (currentTime != 0) {
+        temp = (osGetTime() - currentTime) * 64 / 3000;
         if (1000000 - temp > 0) {
             Sleep_Usec(1000000 - temp);
         }
@@ -216,20 +216,20 @@ void func_801C7268(void) {
         func_801C6F30();
     }
     B_801D9DB8 = 1;
-    B_801D9DC0 = 0;
+    currentTime = 0;
     if (func_801C7064() == 1) {
         func_801C7098();
     } else if (isGameDiskCorrect != 0) {
         isGameDiskCorrect = 0;
     }
 #if OOT_VERSION < NTSC_1_1
-    if (B_801D9DC0 != 0) {
-        sp1C = (osGetTime() - B_801D9DC0) * 64 / 3000;
+    if (currentTime != 0) {
+        sp1C = (osGetTime() - currentTime) * 64 / 3000;
 
         // Remnants from debug statements?
-        (void)(osGetTime() - B_801D9DC0);
-        (void)((osGetTime() - B_801D9DC0) * 64 / 3000);
-        (void)((osGetTime() - B_801D9DC0) * 64 / 3000);
+        (void)(osGetTime() - currentTime);
+        (void)((osGetTime() - currentTime) * 64 / 3000);
+        (void)((osGetTime() - currentTime) * 64 / 3000);
 
         if (1000000 - sp1C > 0) {
             Sleep_Usec(1000000 - sp1C);
@@ -237,7 +237,7 @@ void func_801C7268(void) {
     }
 #else
     if (D_801D2EA8 == 1 || B_801E0F60 == 1 || B_801E0F64 == 1) {
-        B_801D9DC0 = osGetTime();
+        currentTime = osGetTime();
     }
     func_801C7B28_ne2();
 #endif
@@ -264,7 +264,7 @@ void func_801C746C(void* arg0, void* arg1, void* arg2) {
             if (B_801D9DB8 != 0) {
                 B_801D9DB8 = 0;
                 func_801C7438(sp2C);
-                B_801D9DC0 = osGetTime();
+                currentTime = osGetTime();
             }
             if (arg0 != NULL) {
                 func_801CA1F0(arg0, 96, 32, 192, 16, 11, sp2C, SCREEN_WIDTH);
@@ -357,7 +357,7 @@ s32 func_801C7658(void) {
 s32 func_801C7818(void) {
 #if OOT_VERSION >= NTSC_1_1
     B_801D9DB8 = 1;
-    B_801D9DC0 = 0;
+    currentTime = 0;
 #endif
 
     B_801D9D50.unk_00 = 12;
@@ -370,7 +370,7 @@ s32 func_801C7818(void) {
 
 #if OOT_VERSION >= NTSC_1_1
     if (D_801D2EA8 == 1 || B_801E0F60 == 1 || B_801E0F64 == 1) {
-        B_801D9DC0 = osGetTime();
+        currentTime = osGetTime();
     }
     func_801C7B28_ne2();
 #endif
@@ -504,7 +504,7 @@ void func_801C7C1C(void* dest, s32 offset, s32 size) {
     func_801C6FD8();
     func_801C6F30();
     B_801D9DB8 = 1;
-    B_801D9DC0 = 0;
+    currentTime = 0;
     func_801C7B48(offset, &sp5C, &sp54);
     func_801C7B48(offset + size, &sp58, &sp50);
     sp4C = tmpDDReadBuf;
@@ -527,8 +527,8 @@ void func_801C7C1C(void* dest, s32 offset, s32 size) {
         }
     }
 #if OOT_VERSION < NTSC_1_1
-    if (B_801D9DC0 != 0) {
-        temp_v1_2 = (osGetTime() - B_801D9DC0) * 64 / 3000;
+    if (currentTime != 0) {
+        temp_v1_2 = (osGetTime() - currentTime) * 64 / 3000;
         if (1000000 - temp_v1_2 > 0) {
             Sleep_Usec(1000000 - temp_v1_2);
         }
