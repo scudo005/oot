@@ -18,49 +18,51 @@
 
 #pragma increment_block_number "ntsc-1.0:64 ntsc-1.1:64 ntsc-1.2:64 pal-1.0:64 pal-1.1:64"
 
-typedef struct struct_801D9C30 {
-    /* 0x000 */ s32 unk_000;       // disk start
-    /* 0x004 */ s32 unk_004;       // disk end
-    /* 0x008 */ uintptr_t unk_008; // ram start
-    /* 0x00C */ uintptr_t unk_00C; // ram end
+typedef struct n64dd_CopyToRAM {
+    /* 0x000 */ s32 diskStart;       // disk start
+    /* 0x004 */ s32 diskEnd;       // disk end
+    /* 0x008 */ uintptr_t RAMStart; // ram start
+    /* 0x00C */ uintptr_t RAMEnd; // ram end
     /* 0x010 */ UNK_PTR unk_010;
-    /* 0x014 */ char unk_014[0x104];
-} struct_801D9C30; // size = 0x118
+    /* 0x014 */ char padding[0x104];
+} n64dd_CopyToRAM; // size = 0x118
 
-typedef struct struct_801D9B90 {
+typedef struct n64dd_QueuedTransfersList { // I think this basically has a list of queued disk read commands 
+                                            // ready to be passed to an OSMesgQueue
     /* 0x00 */ OSMesg unk_00[30];
     /* 0x78 */ OSMesgQueue unk_78;
     /* 0x90 */ IrqMgrClient unk_90;
     /* 0x98 */ IrqMgr* unk_98;
-} struct_801D9B90; // size = 0x9C
+} n64dd_QueuedTransfersList; // size = 0x9C
 
-s32 func_801C7A1C(struct_801E0D18* arg0);
+s32 n64dd_CheckIfDiskIsValid(n64dd_CommPacket* arg0);
 
-void* D_801D2E50 = &gN64DDDiskReadTemporaryBuffer;
-s32 (*D_801D2E54)(struct_801E0D18*) = func_801C7A1C;
+void* tmpDDReadBuf = &gN64DDDiskReadTemporaryBuffer;
+s32 (*D_801D2E54)(n64dd_CommPacket*) = n64dd_CheckIfDiskIsValid;
 
-struct_801D9B90 B_801D9B90;
-struct_801D9C30 B_801D9C30;
-struct_801D9C30* B_801D9D48;
+n64dd_QueuedTransfersList B_801D9B90;
+n64dd_CopyToRAM B_801D9C30;
+n64dd_CopyToRAM* B_801D9D48;
 struct_801D9D50 B_801D9D50;
 OSMesgQueue B_801D9D80;
 OSMesgQueue B_801D9D98;
 OSMesg B_801D9DB0[1];
 OSMesg B_801D9DB4[1];
-volatile u8 B_801D9DB8;
+volatile u8 B_801D9DB8; // maybe this is a bool? it's never set to anything other than 0 or 1
 volatile OSTime B_801D9DC0;
-s32 B_801D9DC8; // 1 if disk gameName is correct, 2 otherwise
+s32 isGameDiskCorrect; // 1 if disk gameName is correct, 2 otherwise
+                        // shouldn't it be u8? or is s32 there for matching?
 void* B_801D9DCC;
 void* B_801D9DD0;
 void* B_801D9DD4;
-OSThread B_801D9DD8;
+OSThread DiskReadThread; // not too sure but seems likely
 STACK(B_801D9F88, 0x1000);
 StackEntry B_801DAF88;
 STACK(B_801DAFA8, 0x1000);
 StackEntry B_801DBFA8;
 UNK_TYPE B_801DBFC4; // unused?
 
-u32 func_801C6E80(void) {
+u32 n64dd_CheckIfDriveExists(void) {
 #if OOT_NTSC
     return LeoDriveExist();
 #else
@@ -68,11 +70,11 @@ u32 func_801C6E80(void) {
 #endif
 }
 
-void func_801C6EA0(Gfx** gfxP) {
+void func_801C6EA0(Gfx** gfxP) { // hook? see game.c
 }
 
 void func_801C6EAC(void) {
-    if (D_80121214 == 0) {
+    if (D_80121214 == 0) { // music stop hook???
         func_800F6BDC();
         D_80121214 = 1;
     }
@@ -149,7 +151,7 @@ s32 func_801C7098(void) {
 }
 
 s32 func_801C70E4(void) {
-    return B_801D9DC8 == 1;
+    return isGameDiskCorrect == 1;
 }
 
 // Used by EnMag and FileChoose
@@ -159,7 +161,7 @@ s32 func_801C70FC(void) {
 
 void func_801C711C(void* arg) {
     static void* B_801DBFC8;
-    struct_801D9B90* arg0 = (struct_801D9B90*)arg;
+    n64dd_QueuedTransfersList* arg0 = (n64dd_QueuedTransfersList*)arg;
     s16* sp58;
     s32 var_s0;
     void* temp_v0;
@@ -217,8 +219,8 @@ void func_801C7268(void) {
     B_801D9DC0 = 0;
     if (func_801C7064() == 1) {
         func_801C7098();
-    } else if (B_801D9DC8 != 0) {
-        B_801D9DC8 = 0;
+    } else if (isGameDiskCorrect != 0) {
+        isGameDiskCorrect = 0;
     }
 #if OOT_VERSION < NTSC_1_1
     if (B_801D9DC0 != 0) {
@@ -313,8 +315,8 @@ s32 func_801C7658(void) {
 
 #if OOT_VERSION < PAL_1_0
     StackCheck_Init(&B_801DAF88, B_801D9F88, STACK_TOP(B_801D9F88), 0, 0x100, "ddmsg");
-    osCreateThread(&B_801D9DD8, THREAD_ID_DDMSG, &func_801C711C, &B_801D9B90, STACK_TOP(B_801D9F88), THREAD_PRI_DDMSG);
-    osStartThread(&B_801D9DD8);
+    osCreateThread(&DiskReadThread, THREAD_ID_DDMSG, &func_801C711C, &B_801D9B90, STACK_TOP(B_801D9F88), THREAD_PRI_DDMSG);
+    osStartThread(&DiskReadThread);
 #endif
 
     osCreateMesgQueue(&B_801D9D80, B_801D9DB0, ARRAY_COUNT(B_801D9DB0));
@@ -345,8 +347,8 @@ s32 func_801C7658(void) {
 
 #if OOT_VERSION >= PAL_1_0
     StackCheck_Init(&B_801DAF88, B_801D9F88, STACK_TOP(B_801D9F88), 0, 0x100, "ddmsg");
-    osCreateThread(&B_801D9DD8, THREAD_ID_DDMSG, &func_801C711C, &B_801D9B90, STACK_TOP(B_801D9F88), THREAD_PRI_DDMSG);
-    osStartThread(&B_801D9DD8);
+    osCreateThread(&DiskReadThread, THREAD_ID_DDMSG, &func_801C711C, &B_801D9B90, STACK_TOP(B_801D9F88), THREAD_PRI_DDMSG);
+    osStartThread(&DiskReadThread);
 #endif
 
     return 0;
@@ -426,8 +428,8 @@ void func_801C79CC(void* arg0, s32 arg1, s32 arg2) {
 void func_801C7A10(LEODiskID* arg0) {
 }
 
-// Checks diskId, sets B_801D9DC8 and returns true if diskId is correct
-s32 func_801C7A1C(struct_801E0D18* arg0) {
+// Checks diskId, sets isGameDiskCorrect and returns true if diskId is correct
+s32 n64dd_CheckIfDiskIsValid(n64dd_CommPacket* arg0) {
     static LEODiskID B_801DBFD0;
     static s32 B_801DBFF0; // bool
 
@@ -441,16 +443,16 @@ s32 func_801C7A1C(struct_801E0D18* arg0) {
         {
             B_801DBFD0 = arg0->diskId;
             B_801DBFF0 = true;
-            B_801D9DC8 = 1;
+            isGameDiskCorrect = 1;
         } else {
-            B_801D9DC8 = 2;
+            isGameDiskCorrect = 2;
         }
     } else if (bcmp(&B_801DBFD0, &arg0->diskId, sizeof(LEODiskID)) == 0) {
-        B_801D9DC8 = 1;
+        isGameDiskCorrect = 1;
     } else {
-        B_801D9DC8 = 2;
+        isGameDiskCorrect = 2;
     }
-    return B_801D9DC8 == 1;
+    return isGameDiskCorrect == 1;
 }
 
 // Translates byte position to LBA and byte offset
@@ -505,7 +507,7 @@ void func_801C7C1C(void* dest, s32 offset, s32 size) {
     B_801D9DC0 = 0;
     func_801C7B48(offset, &sp5C, &sp54);
     func_801C7B48(offset + size, &sp58, &sp50);
-    sp4C = D_801D2E50;
+    sp4C = tmpDDReadBuf;
     if (sp5C == sp58) {
         func_801C7920(sp5C, sp4C, func_801C7BEC(sp5C));
         bcopy((u8*)sp4C + sp54, dest, size);
@@ -552,10 +554,10 @@ s32 func_801C7E80(void) {
     }
     B_801D9D48 = &B_801D9C30;
     func_801C7C1C(B_801D9D48, 0x1060, 0x118);
-    sp24 = B_801D9D48->unk_004 - B_801D9D48->unk_000;
-    sp20 = B_801D9D48->unk_00C - B_801D9D48->unk_008;
-    sp18 = B_801D9D48->unk_008 + sp24;
-    func_801C7C1C((void*)B_801D9D48->unk_008, B_801D9D48->unk_000, sp24);
+    sp24 = B_801D9D48->diskEnd - B_801D9D48->diskStart;
+    sp20 = B_801D9D48->RAMEnd - B_801D9D48->RAMStart;
+    sp18 = B_801D9D48->RAMStart + sp24;
+    func_801C7C1C((void*)B_801D9D48->RAMStart, B_801D9D48->diskStart, sp24);
     bzero((void*)sp18, sp20 - sp24);
     func_800AD4C0(B_801D9D48->unk_010);
     return 0;
@@ -563,7 +565,7 @@ s32 func_801C7E80(void) {
 
 s32 func_801C7F24(void) {
     uintptr_t temp_a0;
-    struct_801D9C30* temp_v0;
+    n64dd_CopyToRAM* temp_v0;
 
     if (B_801D9D48 == 0) {
         return -1;
@@ -573,9 +575,9 @@ s32 func_801C7F24(void) {
     func_800AD51C();
 
     temp_v0 = B_801D9D48;
-    temp_a0 = temp_v0->unk_008;
-    bzero((void*)temp_a0, temp_v0->unk_00C - temp_a0);
-    bzero(B_801D9D48, sizeof(struct_801D9C30));
+    temp_a0 = temp_v0->RAMStart;
+    bzero((void*)temp_a0, temp_v0->RAMEnd - temp_a0);
+    bzero(B_801D9D48, sizeof(n64dd_CopyToRAM));
     B_801D9D48 = 0;
     return 0;
 }

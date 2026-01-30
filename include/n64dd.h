@@ -68,7 +68,7 @@ typedef struct n64ddStruct_80121220 {
     s32 (*unk_78)(struct PlayState*, void*, void*);
 } n64ddStruct_80121220; // size = ?
 
-typedef struct struct_801E0D18 {
+typedef struct n64dd_CommPacket {
     /* 0x00 */ LEOCmd unk_00;
     /* 0x1C */ OSMesgQueue unk_1C;
     /* 0x38 */ LEODiskID diskId;
@@ -80,7 +80,7 @@ typedef struct struct_801E0D18 {
     /* 0x66 */ u8 unk_66;
     /* 0x68 */ s32 unk_68;
     /* 0x6C */ s32 unk_6C;
-} struct_801E0D18; // size = 0x70
+} n64dd_CommPacket; // size = 0x70
 
 typedef struct struct_801D9D50 {
     /* 0x00 */ u8 unk_00; // command enum
@@ -105,7 +105,7 @@ n64ddStruct_800FEE70_pointers* func_800AD560(void);
 void func_800AD590(void);
 void func_800AD598(s32 arg0, s32 arg1, s32 arg2);
 
-u32 func_801C6E80(void);
+u32 n64dd_CheckIfDriveExists(void);
 void func_801C6EA0(Gfx** gfxP);
 s32 func_801C70FC(void);
 void func_801C7268(void);
@@ -117,19 +117,19 @@ void n64dd_SetDiskVersion(s32 arg0);
 
 s32 func_801C8000(struct_801D9D50* arg0);
 s32 func_801C81C4(void);
-void func_801C81EC(struct_801E0D18* arg0);
-void func_801C8298(struct_801E0D18* arg0);
-void func_801C82E0(struct_801E0D18* arg0);
-void func_801C832C(struct_801E0D18* arg0);
-void func_801C83A0(struct_801E0D18* arg0);
-void func_801C8414(struct_801E0D18* arg0);
-s32 func_801C873C(struct_801E0D18* arg0);
+void func_801C81EC(n64dd_CommPacket* arg0);
+void func_801C8298(n64dd_CommPacket* arg0);
+void func_801C82E0(n64dd_CommPacket* arg0);
+void func_801C832C(n64dd_CommPacket* arg0);
+void func_801C83A0(n64dd_CommPacket* arg0);
+void func_801C8414(n64dd_CommPacket* arg0);
+s32 func_801C873C(n64dd_CommPacket* arg0);
 
 void func_801C8AA8(void);
-s32 func_801C91E0(struct_801E0D18*);
-s32 func_801C9260(struct_801E0D18*);
-s32 func_801C9334(struct_801E0D18*);
-s32 func_801C93C4(struct_801E0D18*);
+s32 func_801C91E0(n64dd_CommPacket*);
+s32 func_801C9260(n64dd_CommPacket*);
+s32 func_801C9334(n64dd_CommPacket*);
+s32 func_801C93C4(n64dd_CommPacket*);
 
 void func_801C94F8(u8* arg0, u16 arg1);
 void func_801C9A10(u8* arg0, s32 arg1, u8* str);
@@ -153,7 +153,7 @@ extern u8 D_80121212;
 extern vu8 D_80121213;
 extern vu8 D_80121214;
 
-extern s32 (*D_801D2E54)(struct_801E0D18*);
+extern s32 (*D_801D2E54)(n64dd_CommPacket*);
 
 extern u8 gN64DDDiskReadTemporaryBuffer[];
 

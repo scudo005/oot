@@ -3898,10 +3898,10 @@ void Audio_DisableAllSeq(void) {
 }
 
 s8 func_800F6BB8(void) {
-    return func_800E6680();
+    return AudioThread_CountNotesWithActiveADSR();
 }
 
-void func_800F6BDC(void) {
+void func_800F6BDC(void) { // stop old sequences and play new ones when available?
     Audio_DisableAllSeq();
     AudioThread_ScheduleProcessCmds();
     while (true) {

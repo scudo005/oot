@@ -1092,7 +1092,7 @@ u8* AudioThread_GetFontsForSequence(s32 seqId, u32* outNumFonts);
 s32 func_800E5EDC(void);
 s32 AudioThread_ResetAudioHeap(s32 specId);
 void AudioThread_PreNMIInternal(void);
-s32 func_800E6680(void);
+s32 AudioThread_CountNotesWithActiveADSR(void);
 u32 AudioThread_NextRandom(void);
 void AudioThread_InitMesgQueues(void);
 
