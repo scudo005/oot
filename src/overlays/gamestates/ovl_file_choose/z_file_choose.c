@@ -2044,7 +2044,7 @@ void FileSelect_Main(GameState* thisx) {
     OPEN_DISPS(this->state.gfxCtx, "../z_file_choose.c", 2898);
 
 #if PLATFORM_N64
-    if ((D_80121212 != 0) && (func_801C70FC() != 0)) {
+    if ((D_80121212 != 0) && (n64dd_checkIfGameDiskIsCorrect() != 0)) {
         this->n64ddFlag = 1;
     } else {
         this->n64ddFlag = 0;

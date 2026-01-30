@@ -3897,15 +3897,15 @@ void Audio_DisableAllSeq(void) {
     AudioThread_ScheduleProcessCmds();
 }
 
-s8 func_800F6BB8(void) {
+s8 Audio_CountNotesWithActiveADSR(void) {
     return AudioThread_CountNotesWithActiveADSR();
 }
 
-void func_800F6BDC(void) { // stop old sequences and play new ones when available?
+void Audio_StopSequencesAndWaitForNoteEnd(void) {
     Audio_DisableAllSeq();
     AudioThread_ScheduleProcessCmds();
     while (true) {
-        if (!func_800F6BB8()) {
+        if (!Audio_CountNotesWithActiveADSR()) { // if there are no more notes left
             return;
         }
     }

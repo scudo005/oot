@@ -4,10 +4,10 @@
 #include "n64dd.h"
 
 u8 D_80121210;
-u8 D_80121211;
+u8 n64dd_isDiskDrivePresent;
 u8 D_80121212;
 vu8 D_80121213;
-vu8 D_80121214;
+vu8 D_80121214; // unused here
 
 void func_800AD410(void) {
     if (!D_80121210) {
@@ -15,8 +15,8 @@ void func_800AD410(void) {
                          _n64ddSegmentRomEnd - _n64ddSegmentRomStart, UNK_FILE, UNK_LINE);
         bzero(_n64ddSegmentBssStart, _n64ddSegmentBssEnd - _n64ddSegmentBssStart);
         D_80121210 = true;
-        D_80121211 = n64dd_CheckIfDriveExists();
-        if (D_80121211) {}
+        n64dd_isDiskDrivePresent = n64dd_CheckIfDriveExists();
+        if (n64dd_isDiskDrivePresent) {}
     }
 }
 

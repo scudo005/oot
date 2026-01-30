@@ -107,7 +107,7 @@ void func_800AD598(s32 arg0, s32 arg1, s32 arg2);
 
 u32 n64dd_CheckIfDriveExists(void);
 void func_801C6EA0(Gfx** gfxP);
-s32 func_801C70FC(void);
+s32 n64dd_checkIfGameDiskIsCorrect(void);
 void func_801C7268(void);
 s32 func_801C7658(void);
 s32 func_801C7818(void);
@@ -148,7 +148,7 @@ extern n64ddStruct_800FEE70_pointers D_800FEE70;
 extern n64ddStruct_80121220* B_80121220;
 
 extern u8 D_80121210;
-extern u8 D_80121211;
+extern u8 n64dd_isDiskDrivePresent;
 extern u8 D_80121212;
 extern vu8 D_80121213;
 extern vu8 D_80121214;

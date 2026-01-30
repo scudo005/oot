@@ -73,9 +73,9 @@ u32 n64dd_CheckIfDriveExists(void) {
 void func_801C6EA0(Gfx** gfxP) { // hook? see game.c
 }
 
-void func_801C6EAC(void) {
+void n64dd_StopMusic(void) {
     if (D_80121214 == 0) { // music stop hook???
-        func_800F6BDC();
+        Audio_StopSequencesAndWaitForNoteEnd();
         D_80121214 = 1;
     }
 }
@@ -92,7 +92,7 @@ s32 func_801C6F08(void) {
 }
 
 void func_801C6F30(void) {
-    func_801C6EAC();
+    n64dd_StopMusic();
     while (func_801C6F08() == 0) {
         Sleep_Usec(16666); // 100000 / 6
     }
@@ -150,13 +150,13 @@ s32 func_801C7098(void) {
     return phi_v1;
 }
 
-s32 func_801C70E4(void) {
+s32 n64dd_checkIfGameDiskIsCorrectInternal(void) {
     return isGameDiskCorrect == 1;
 }
 
 // Used by EnMag and FileChoose
-s32 func_801C70FC(void) {
-    return func_801C70E4();
+s32 n64dd_checkIfGameDiskIsCorrect(void) {
+    return n64dd_checkIfGameDiskIsCorrectInternal();
 }
 
 void func_801C711C(void* arg) {

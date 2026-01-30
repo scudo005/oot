@@ -102,7 +102,7 @@ void Main(void* arg) {
     Fault_Init();
 #if PLATFORM_N64
     func_800AD410();
-    if (D_80121211 != 0) {
+    if (n64dd_isDiskDrivePresent != 0) {
         systemHeapStart = (uintptr_t)_n64ddSegmentEnd;
         SysCfb_Init(1);
     } else {

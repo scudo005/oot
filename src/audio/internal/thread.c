@@ -17,7 +17,7 @@ void AudioThread_SetFadeOutTimer(s32 seqPlayerIndex, s32 fadeTimer);
 void AudioThread_ProcessCmds(u32);
 void AudioThread_ProcessSeqPlayerCmd(SequencePlayer* seqPlayer, AudioCmd* cmd);
 void AudioThread_ProcessChannelCmd(SequenceChannel* channel, AudioCmd* cmd);
-s32 AudioThread_ReleaseDecayingNotes(s32 flags);
+s32 AudioThread_ReleaseAndCountNotesWithActiveADSR(s32 flags);
 
 // AudioMgr_Retrace
 AudioTask* AudioThread_Update(void) {
@@ -322,7 +322,7 @@ void AudioThread_ProcessGlobalCmd(AudioCmd* cmd) {
                     }
                 }
             }
-            AudioThread_ReleaseDecayingNotes(flags);
+            AudioThread_ReleaseAndCountNotesWithActiveADSR(flags);
             break;
 
         case AUDIOCMD_OP_GLOBAL_POP_PERSISTENT_CACHE:
@@ -889,20 +889,20 @@ s32 func_800E6590(s32 seqPlayerIndex, s32 channelIndex, s32 layerIndex) {
 }
 
 s32 AudioThread_CountNotesWithActiveADSR(void) {
-    return AudioThread_ReleaseDecayingNotes(0);
+    return AudioThread_ReleaseAndCountNotesWithActiveADSR(0);
 }
 
-void func_800E66A0(void) {
-    AudioThread_ReleaseDecayingNotes(2);
+void AudioThread_ReleaseNotesWithActiveADSR(void) {
+    AudioThread_ReleaseAndCountNotesWithActiveADSR(2);
 }
 
 /**
  * original name: Nap_SilenceCheck_Inner,
  * starts the release of already decaying notes if flags >= 1,
  * skipping synthetized notes and notes with samples in RAM.
- * returns the number of notes with inactive ADSR envelopes
+ * @return the number of notes with inactive ADSR envelopes
  */
-s32 AudioThread_ReleaseDecayingNotes(s32 flags) {
+s32 AudioThread_ReleaseAndCountNotesWithActiveADSR(s32 flags) {
     s32 phi_v1;
     NotePlaybackState* playbackState;
     NoteSubEu* noteSubEu;
@@ -928,7 +928,7 @@ s32 AudioThread_ReleaseDecayingNotes(s32 flags) {
                 }
 
                 phi_v1++;
-                if ((flags & 1) == 1) {
+                if ((flags & 1) == 1) { // release this note no matter what
                     playbackState->adsr.fadeOutVel = gAudioCtx.audioBufferParameters.ticksPerUpdateInv;
                     playbackState->adsr.action.s.release = 1; 
                 }
